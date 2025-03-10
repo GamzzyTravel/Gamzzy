@@ -5,7 +5,7 @@ from starlette.responses import JSONResponse
 
 app = FastAPI()
 
-# API-Keys aus Vercel Environment Variables laden
+# API-Keys aus den Vercel Environment Variables abrufen
 API_KEY = os.getenv("AMADEUS_API_KEY")
 API_SECRET = os.getenv("AMADEUS_API_SECRET")
 
@@ -19,6 +19,10 @@ def get_access_token():
     }
     response = requests.post(url, data=data)
     return response.json().get("access_token")
+
+@app.get("/")
+def home():
+    return {"message": "Gamzzy Flight API is running!"}
 
 @app.get("/flights")
 def search_flights(
@@ -42,4 +46,3 @@ def search_flights(
     response = requests.get("https://test.api.amadeus.com/v2/shopping/flight-offers", headers=headers, params=params)
     
     return response.json()
-
