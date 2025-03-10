@@ -1,1 +1,142 @@
-flights.html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamzzy Flugsuche</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🔎 Gamzzy Flugsuche</h1>
+    
+    <label>Abflughafen (IATA-Code):</label>
+    <input type="text" id="origin" placeholder="z. B. BER">
+    
+    <label>Ziel (IATA-Code):</label>
+    <input type="text" id="destination" placeholder="z. B. BKK">
+    
+    <label>Abflugdatum:</label>
+    <input type="date" id="departureDate">
+    
+    <button onclick="searchFlights()">Flüge suchen</button>
+
+    <h2>Ergebnisse:</h2>
+    <table id="results">
+        <thead>
+            <tr>
+                <th>Airline</th>
+                <th>Von</th>
+                <th>Nach</th>
+                <th>Abflug</th>
+                <th>Ankunft</th>
+                <th>Dauer</th>
+                <th>Preis (€)</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        async function searchFlights() {
+            const API_KEY = "NUr5GWYPyRkuieBC8locpeNUWzLL65hB";
+            const API_SECRET = "BQyVvOw4vbsXbfxh";
+
+            // Token abrufen
+            async function getAccessToken() {
+                const auth_url = "https://test.api.amadeus.com/v1/security/oauth2/token";
+                const response = await fetch(auth_url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        grant_type: "client_credentials",
+                        client_id: API_KEY,
+                        client_secret: API_SECRET
+                    })
+                });
+                const data = await response.json();
+                return data.access_token;
+            }
+
+            const origin = document.getElementById("origin").value;
+            const destination = document.getElementById("destination").value;
+            const departureDate = document.getElementById("departureDate").value;
+
+            if (!origin || !destination || !departureDate) {
+                alert("Bitte alle Felder ausfüllen!");
+                return;
+            }
+
+            const token = await getAccessToken();
+            const apiUrl = `https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=${origin}&destinationLocationCode=${destination}&departureDate=${departureDate}&adults=1&max=5`;
+
+            const response = await fetch(apiUrl, {
+                method: "GET",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        }
+
+        function displayResults(data) {
+            const tbody = document.querySelector("#results tbody");
+            tbody.innerHTML = "";  // Vorherige Ergebnisse löschen
+
+            if (!data.data || data.data.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='7'>Keine Flüge gefunden.</td></tr>";
+                return;
+            }
+
+            data.data.forEach(offer => {
+                const itinerary = offer.itineraries[0];  // Erster Flug
+                const departure = itinerary.segments[0].departure.iataCode;
+                const arrival = itinerary.segments[itinerary.segments.length - 1].arrival.iataCode;
+                const departureTime = itinerary.segments[0].departure.at;
+                const arrivalTime = itinerary.segments[itinerary.segments.length - 1].arrival.at;
+                const duration = itinerary.duration;
+                const airline = offer.validatingAirlineCodes[0];
+                const price = offer.price.grandTotal;
+
+                const row = `<tr>
+                    <td>${airline}</td>
+                    <td>${departure}</td>
+                    <td>${arrival}</td>
+                    <td>${departureTime}</td>
+                    <td>${arrivalTime}</td>
+                    <td>${duration}</td>
+                    <td>${price}</td>
+                </tr>`;
+
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+
+</body>
+</html>
