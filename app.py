@@ -1,11 +1,13 @@
+import os
 import requests
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Query
+from starlette.responses import JSONResponse
 
-app = Flask(__name__)
+app = FastAPI()
 
-# Amadeus API Credentials
-API_KEY = "NUr5GWYPyRkuieBC8locpeNUWzLL65hB"
-API_SECRET = "BQyVvOw4vbsXbfxh"
+# API-Keys aus Vercel Environment Variables laden
+API_KEY = os.getenv("AMADEUS_API_KEY")
+API_SECRET = os.getenv("AMADEUS_API_SECRET")
 
 # Funktion, um das Access Token von Amadeus zu erhalten
 def get_access_token():
@@ -18,27 +20,26 @@ def get_access_token():
     response = requests.post(url, data=data)
     return response.json().get("access_token")
 
-@app.route("/flights", methods=["GET"])
-def search_flights():
-    origin = request.args.get("origin")
-    destination = request.args.get("destination")
-    departure_date = request.args.get("departure")
-    adults = request.args.get("adults", 1)
-
-    if not origin or not destination or not departure_date:
-        return jsonify({"error": "Fehlende Parameter!"}), 400
+@app.get("/flights")
+def search_flights(
+    origin: str = Query(..., description="Abflughafen-Code"),
+    destination: str = Query(..., description="Zielflughafen-Code"),
+    departure: str = Query(..., description="Abflugdatum (YYYY-MM-DD)"),
+    adults: int = Query(1, description="Anzahl der Erwachsenen")
+):
+    if not origin or not destination or not departure:
+        return JSONResponse(content={"error": "Fehlende Parameter!"}, status_code=400)
 
     token = get_access_token()
     headers = {"Authorization": f"Bearer {token}"}
     params = {
         "originLocationCode": origin,
         "destinationLocationCode": destination,
-        "departureDate": departure_date,
+        "departureDate": departure,
         "adults": adults,
         "max": 5
     }
     response = requests.get("https://test.api.amadeus.com/v2/shopping/flight-offers", headers=headers, params=params)
-    return jsonify(response.json())
+    
+    return response.json()
 
-if __name__ == "__main__":
-    app.run(debug=True)
